@@ -1,7 +1,7 @@
 import numpy as np
 from statsmodels.stats import proportion
 
-from src.effect import from_sums, ipw_diff, naive_diff, stratified_diff
+from src.effect import from_sums, ipw_diff, iv_wald, naive_diff, stratified_diff
 
 N_REPS = 2000
 
@@ -79,3 +79,18 @@ def test_empty_strata_are_skipped():
     without = from_sums([100, 300], [10, 20], [50, 60], [4, 5])
     assert with_gap["diff"] == without["diff"] and with_gap["se"] == without["se"]
     assert with_gap["n_strata_nonempty"] == 2
+
+
+def test_iv_recovers_effect_on_compliers():
+    # Показ получают 30% treatment, эффект только у показанных, 0,02
+    rng = np.random.default_rng(16)
+    reps, covered = 300, 0
+    for _ in range(reps):
+        n = 60_000
+        s = rng.integers(0, 2, n)
+        t = (rng.random(n) < 0.85).astype(np.int8)
+        d = (t == 1) & (rng.random(n) < 0.2 + 0.2 * s)
+        y = (rng.random(n) < 0.05 + 0.03 * s + 0.02 * d).astype(np.int8)
+        lo, hi = iv_wald(y, d, t, s)["ci95"]
+        covered += lo < 0.02 < hi
+    assert 0.92 < covered / reps < 0.98

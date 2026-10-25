@@ -115,5 +115,36 @@
       "ipw_minus_stratified_in_se": 0.42765486737496533,
       "n_events": 40774
     }
+  },
+  "exposure": {
+    "note": "показ не рандомизирован, treatment как инструмент, оценка CACE",
+    "visit": {
+      "cace": 0.20966157890606152,
+      "se": 0.004160413115560603,
+      "ci95": [
+        0.20150731903875466,
+        0.21781583877336838
+      ],
+      "itt_outcome": 0.00739876025630712,
+      "itt_exposure": 0.03528906104261535,
+      "exposure_rate_treatment": 0.036036727482199896,
+      "exposure_rate_control": 0.0,
+      "n_exposed_control": 0,
+      "n_control": 2096937
+    },
+    "conversion": {
+      "cace": 0.027088634301929312,
+      "se": 0.0010321011732809787,
+      "ci95": [
+        0.02506575317389706,
+        0.029111515429961564
+      ],
+      "itt_outcome": 0.0009559324694418676,
+      "itt_exposure": 0.03528906104261535,
+      "exposure_rate_treatment": 0.036036727482199896,
+      "exposure_rate_control": 0.0,
+      "n_exposed_control": 0,
+      "n_control": 2096937
+    }
   }
 }
