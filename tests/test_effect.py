@@ -1,7 +1,7 @@
 import numpy as np
 from statsmodels.stats import proportion
 
-from src.effect import from_sums, naive_diff, stratified_diff
+from src.effect import from_sums, ipw_diff, naive_diff, stratified_diff
 
 N_REPS = 2000
 
@@ -59,3 +59,23 @@ def test_poisson_weights_one_equal_plain_sums():
     t = rng.integers(0, 2, 1000)
     s = rng.integers(0, 3, 1000)
     assert stratified_diff(y, t, s, np.ones(1000)) == stratified_diff(y, t, s)
+
+
+def test_ipw_recovers_planted_effect_under_confounding():
+    rng = np.random.default_rng(15)
+    n = 2_000_000
+    s = rng.integers(0, 4, n)
+    e = np.array([0.80, 0.84, 0.88, 0.92])[s]
+    t = (rng.random(n) < e).astype(np.int8)
+    y = (rng.random(n) < np.array([0.02, 0.04, 0.06, 0.08])[s] + 0.003 * t).astype(np.int8)
+    ipw, strat = ipw_diff(y, t, e), stratified_diff(y, t, s)
+    assert ipw["ci95"][0] < 0.003 < ipw["ci95"][1]
+    assert abs(ipw["diff"] - strat["diff"]) < 0.3 * strat["se"]
+    assert abs(ipw["se"] / strat["se"] - 1) < 0.05
+
+
+def test_empty_strata_are_skipped():
+    with_gap = from_sums([100, 0, 300], [10, 0, 20], [50, 0, 60], [4, 0, 5])
+    without = from_sums([100, 300], [10, 20], [50, 60], [4, 5])
+    assert with_gap["diff"] == without["diff"] and with_gap["se"] == without["se"]
+    assert with_gap["n_strata_nonempty"] == 2

@@ -1,6 +1,13 @@
 """Разница долей между группами, простая и стратифицированная (план анализа, раздел 4)."""
+import json
+from pathlib import Path
+
 import numpy as np
+import pyarrow.parquet as pq
 from scipy import stats
+
+from src.data import ROOT, load
+from src.structure import N_STRATA, PROPENSITY
 
 Z95 = stats.norm.ppf(0.975)
 
@@ -25,6 +32,9 @@ def from_sums(n_t, x_t, n_c, x_c) -> dict:
     Дисперсия это сумма квадратов весов на дисперсии Вальда внутри страт. Относительный
     эффект делится на стратифицированную долю контроля, интервал дельта-методом."""
     n_t, x_t, n_c, x_c = (np.asarray(a, dtype=np.float64) for a in (n_t, x_t, n_c, x_c))
+    # Квантили склонности с совпадающими значениями дают пустые страты, у них вес ноль
+    nonempty = n_t + n_c > 0
+    n_t, x_t, n_c, x_c = n_t[nonempty], x_t[nonempty], n_c[nonempty], x_c[nonempty]
     w = (n_t + n_c) / (n_t + n_c).sum()
     p_t, p_c = x_t / n_t, x_c / n_c
     v_t, v_c = p_t * (1 - p_t) / n_t, p_c * (1 - p_c) / n_c
@@ -42,6 +52,7 @@ def from_sums(n_t, x_t, n_c, x_c) -> dict:
     return {
         "n_treatment": float(n_t.sum()),
         "n_control": float(n_c.sum()),
+        "n_strata_nonempty": int(nonempty.sum()),
         "rate_treatment": float(w @ p_t),
         "rate_control": base,
         "diff": diff,
@@ -61,3 +72,44 @@ def stratified_diff(y, t, s, w=None) -> dict:
 
 def naive_diff(y, t) -> dict:
     return stratified_diff(y, t, np.zeros(len(y), dtype=np.int8))
+
+
+def ipw_diff(y, t, e) -> dict:
+    """Проверка устойчивости: разница нормированных средних с весами 1/e и 1/(1-e).
+
+    Ошибка линеаризацией с известной склонностью, ее оценку не учитывает."""
+    y = y.astype(np.float64)
+    out = {}
+    for name, m, w in (("treatment", t == 1, 1 / e), ("control", t == 0, 1 / (1 - e))):
+        wm, ym = w[m], y[m]
+        mu = float(wm @ ym / wm.sum())
+        out[name] = (mu, float(np.sqrt((wm**2) @ (ym - mu) ** 2) / wm.sum()))
+    diff = out["treatment"][0] - out["control"][0]
+    se = float(np.hypot(out["treatment"][1], out["control"][1]))
+    return {"rate_treatment": out["treatment"][0], "rate_control": out["control"][0],
+            "diff": diff, "se": se, "ci95": [diff - Z95 * se, diff + Z95 * se]}
+
+
+def main(out: Path = ROOT / "results/main.json") -> dict:
+    df = load(["treatment", "visit", "conversion"])
+    prop = pq.read_table(PROPENSITY).to_pandas()
+    t, s = df["treatment"].to_numpy(), prop["stratum"].to_numpy()
+    e = prop["propensity"].to_numpy().astype(np.float64)
+    res = {"n_strata": N_STRATA, "metrics": {}}
+    for metric in ("visit", "conversion"):
+        y = df[metric].to_numpy()
+        strat, ipw = stratified_diff(y, t, s), ipw_diff(y, t, e)
+        res["metrics"][metric] = {
+            "role": "primary" if metric == "visit" else "secondary",
+            "stratified": strat,
+            "naive": naive_diff(y, t),
+            "ipw": ipw,
+            "ipw_minus_stratified_in_se": (ipw["diff"] - strat["diff"]) / strat["se"],
+            "n_events": int(y.sum()),
+        }
+    out.write_text(json.dumps(res, indent=2, ensure_ascii=False))
+    return res
+
+
+if __name__ == "__main__":
+    print(json.dumps(main(), indent=2))
