@@ -74,8 +74,8 @@ def simulate(stream: Stream, effect: float, n_reps: int, checkpoint: Path | None
         z[r, 1] = stream.z(t, stream.planted(t, effect, rng))
         if i % log_every == 0 or i == len(todo):
             rate = (time.time() - start) / i
-            print(f"{r + 1}/{n_reps}, {rate:.2f} с на повтор, осталось {rate * (len(todo) - i):.0f} с",
-                  flush=True)
+            left = rate * (len(todo) - i)
+            print(f"{r + 1}/{n_reps}, {rate:.2f} с на повтор, осталось {left:.0f} с", flush=True)
             if checkpoint is not None:
                 np.save(checkpoint, z[: r + 1])
     return z
@@ -185,9 +185,9 @@ def main(fraction: float, n_reps: int, full: bool) -> dict:
     peeking, sequential = {**meta, **peeking}, {**meta, **sequential}
     if full:
         sequential["real_stream"] = real_stream(stream, bounds)
-        (ROOT / "results/peeking.json").write_text(json.dumps(peeking, indent=2, ensure_ascii=False))
-        (ROOT / "results/sequential.json").write_text(
-            json.dumps(sequential, indent=2, ensure_ascii=False))
+        for name, res in (("peeking", peeking), ("sequential", sequential)):
+            (ROOT / f"results/{name}.json").write_text(
+                json.dumps(res, indent=2, ensure_ascii=False))
         plot(peeking, ROOT / "docs/peeking.png")
     return {"peeking": peeking, "sequential": sequential}
 
