@@ -1,0 +1,22 @@
+{
+  "alpha": 0.05,
+  "power": 0.8,
+  "n_treatment": 11882655,
+  "n_control": 2096937,
+  "metrics": {
+    "visit": {
+      "base_rate": 0.046992,
+      "mde_abs": 0.00044437932460530304,
+      "mde_rel": 0.009456488862046796,
+      "n_for_mde_at_50_50": 7151980,
+      "mde_abs_at_10pct_sample": 0.0014072975474192142
+    },
+    "conversion": {
+      "base_rate": 0.00292,
+      "mde_abs": 0.00011355774245605273,
+      "mde_rel": 0.03888963782741532,
+      "n_for_mde_at_50_50": 7225776,
+      "mde_abs_at_10pct_sample": 0.00036135917063277327
+    }
+  }
+}
