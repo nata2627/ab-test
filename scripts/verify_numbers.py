@@ -97,11 +97,13 @@ def tokenize(text: str) -> list[Token]:
             tok = Token(
                 text[1:] if is_range else text, value, len(frac), SCALE.get(unit, 1.0), lineno
             )
-            # В «0,711-0,769 п. п.» единица стоит один раз и относится к обеим границам.
-            if is_range and prev is not None and prev[1] == "" and unit:
+            # В «0,711-0,769 п. п.» и «от -0,048 до -0,001 п. п.» единица стоит один раз
+            # и относится к обеим границам.
+            joined = prev is not None and (is_range or line[prev[2] : start].strip() == "до")
+            if joined and prev[1] == "" and unit:
                 prev[0].scale = tok.scale
             tokens.append(tok)
-            prev = (tok, unit)
+            prev = (tok, unit, m.end())
     return tokens
 
 

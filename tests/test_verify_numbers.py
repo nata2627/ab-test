@@ -45,3 +45,8 @@ def test_range_inherits_unit(tmp_path):
 def test_unsourced_number_fails(tmp_path):
     _, missing = check(tmp_path, "эффект 0,75 п. п.", {"d": 0.00739})
     assert [t.text for t in missing] == ["0,75 п. п."]
+
+
+def test_from_to_range_inherits_unit(tmp_path):
+    _, missing = check(tmp_path, "от -0,048 до -0,001 п. п.", {"lo": -0.00048, "hi": -0.00001})
+    assert not missing

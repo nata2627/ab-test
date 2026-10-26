@@ -1,0 +1,27 @@
+{
+  "srm_excess_over_expected": 1.800000000745058,
+  "n_strata_empty": 3,
+  "effect_to_mde_visit": 16.649650077394323,
+  "naive_minus_stratified_visit": 0.0029436428728911637,
+  "naive_minus_stratified_visit_in_se": 19.97527912798363,
+  "naive_overstatement_visit": 0.3978562314384815,
+  "cuped_ci_narrowing": {
+    "visit": 0.1044597649076231,
+    "conversion": 0.05283429326525757
+  },
+  "peeking_inflation": 3.810810810810811,
+  "sequential_power_loss": 0.010000000000000009,
+  "sequential_sample_saving": 0.23585,
+  "uplift_minus_outcome": {
+    "t_learner": {
+      "10%": 0.0008473567554560732,
+      "30%": -0.0002573891250335428,
+      "50%": -0.0002845442427281339
+    },
+    "transformed_outcome": {
+      "10%": 0.0006108666181678379,
+      "30%": -0.00025733712993007,
+      "50%": -0.0002499690026600068
+    }
+  }
+}
