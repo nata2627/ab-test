@@ -180,36 +180,6 @@ def evaluate(sc: dict, n_boot: int) -> dict:
     return res
 
 
-LABELS = {"t_learner": ("T-learner", "#2a6fdb"),
-          "transformed_outcome": ("трансформация исхода", "#d9822b"),
-          "outcome": ("модель исхода без группы", "#7a7a7a")}
-
-
-def plot(res: dict, path: Path) -> None:
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
-    grid = 100 * np.r_[0, res["grid"]]
-    fig, ax = plt.subplots(figsize=(6.4, 3.6), dpi=150)
-    for k, (label, color) in LABELS.items():
-        ax.plot(grid, 100 * np.r_[0, res["curves"][k]], color=color, lw=1.5, label=label)
-    total = 100 * res["total_effect_per_user"]
-    ax.plot([0, 100], [0, total], color="#888888", ls="--", lw=1, label="случайный охват")
-    for phi in COVERAGE:
-        ax.axvline(100 * phi, color="#dddddd", lw=0.8, zorder=0)
-    ax.set_xlabel("охват, % пользователей test по убыванию оценки модели")
-    ax.set_ylabel("доп. визиты, п. п. от всех")
-    n = f"{res['n_test']:,}".replace(",", " ")
-    ax.set_title(f"Кривая прироста на test, {n} пользователей", fontsize=10)
-    ax.set_xlim(0, 100)
-    ax.set_ylim(0, None)
-    ax.legend(frameon=False, fontsize=8)
-    ax.spines[["top", "right"]].set_visible(False)
-    fig.tight_layout()
-    fig.savefig(path)
-
-
 def main(fraction: float, n_boot: int, out: Path | None) -> dict:
     start = time.time()
     full = out is not None
@@ -221,7 +191,6 @@ def main(fraction: float, n_boot: int, out: Path | None) -> dict:
     res["peak_memory_gb"] = round(peak_gb(), 2)
     if full:
         out.write_text(json.dumps(res, indent=2, ensure_ascii=False))
-        plot(res, ROOT / "docs/uplift.png")
     return res
 
 

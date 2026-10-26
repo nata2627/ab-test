@@ -138,33 +138,6 @@ def real_stream(stream: Stream, bounds: np.ndarray) -> dict:
     }
 
 
-def plot(peeking: dict, path: Path) -> None:
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
-    looks = np.arange(1, peeking["n_looks"] + 1)
-    by_look = peeking["false_positive_by_look"]
-    fp = np.array([b["share"] for b in by_look])
-    lo = fp - np.array([b["wilson_ci95"][0] for b in by_look])
-    hi = np.array([b["wilson_ci95"][1] for b in by_look]) - fp
-    fig, ax = plt.subplots(figsize=(6.4, 3.6), dpi=150)
-    ax.errorbar(looks, 100 * fp, yerr=100 * np.vstack([lo, hi]), color="#2a6fdb", marker="o",
-                ms=4, lw=1.5, capsize=2)
-    ax.axhline(100 * ALPHA, color="#888888", ls="--", lw=1)
-    ax.text(looks[-1], 100 * ALPHA - 0.4, "заявленные 5%", ha="right", va="top", color="#555555",
-            fontsize=8)
-    ax.set_xticks(looks)
-    ax.set_xlabel("число просмотров (каждый через 10% выборки)")
-    ax.set_ylabel("ложные срабатывания, %")
-    ax.set_title(f"A/A, {by_look[0]['n']} перестановок: остановка на первом p < 0,05",
-                 fontsize=10)
-    ax.set_ylim(0, None)
-    ax.spines[["top", "right"]].set_visible(False)
-    fig.tight_layout()
-    fig.savefig(path)
-
-
 def main(fraction: float, n_reps: int, full: bool) -> dict:
     df = load(["treatment", "visit"])
     s = pq.read_table(PROPENSITY, columns=["stratum"]).to_pandas()["stratum"].to_numpy()
@@ -188,7 +161,6 @@ def main(fraction: float, n_reps: int, full: bool) -> dict:
         for name, res in (("peeking", peeking), ("sequential", sequential)):
             (ROOT / f"results/{name}.json").write_text(
                 json.dumps(res, indent=2, ensure_ascii=False))
-        plot(peeking, ROOT / "docs/peeking.png")
     return {"peeking": peeking, "sequential": sequential}
 
 
