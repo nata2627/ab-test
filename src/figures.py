@@ -1,4 +1,4 @@
-"""Графики README. Строятся только из results/*.json, данные не нужны."""
+"""Графики README. Строятся из results/*.json и формул мощности, данные не нужны."""
 
 import json
 from pathlib import Path
@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
 from src.data import ROOT  # noqa: E402
+from src.power import BASE_RATES, mde_two_props  # noqa: E402
 
 OUT = ROOT / "figures"
 BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
@@ -136,9 +137,105 @@ def uplift() -> Path:
     return save(fig, "uplift.png")
 
 
+def power() -> Path:
+    pw = load("power")
+    share = pw["n_treatment"] / (pw["n_treatment"] + pw["n_control"])
+    n_all = pw["n_treatment"] + pw["n_control"]
+    ns = np.geomspace(1e5, 3e7, 60)
+    fig, ax = new_axes(figsize=(6.4, 3.4))
+    for (name, p0), color, label in zip(BASE_RATES.items(), (BLUE, ORANGE),
+                                        ("визит", "конверсия"), strict=True):
+        mde = [mde_two_props(p0, int(share * n), int((1 - share) * n)) / p0 for n in ns]
+        ax.plot(ns / 1e6, 100 * np.array(mde), color=color, lw=2, label=label)
+        actual = 100 * pw["metrics"][name]["mde_rel"]
+        ax.plot(n_all / 1e6, actual, "o", color=color, ms=6)
+        ax.annotate(f"{actual:.2f}%".replace(".", ","), (n_all / 1e6, actual),
+                    textcoords="offset points", xytext=(6, 4), fontsize=8, color=INK)
+    ax.axvline(n_all / 1e6, color=GRAY, ls="--", lw=1)
+    ax.text(n_all / 1e6, ax.get_ylim()[1] * 0.95, " размер набора", fontsize=8, color=INK)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    plain = matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}".replace(".", ","))
+    for axis in (ax.xaxis, ax.yaxis):
+        axis.set_major_formatter(plain)
+        axis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+    ax.set_xticks([0.1, 0.3, 1, 3, 10, 30])
+    ax.set_yticks([0.5, 1, 2, 5, 10, 20, 50])
+    ax.set_xlabel("пользователей всего, млн (treatment 85%)", fontsize=8, color=INK)
+    ax.set_ylabel("MDE относительный, %", fontsize=8, color=INK)
+    ax.set_title("Минимальный обнаружимый эффект до анализа, альфа 0,05, мощность 0,8",
+                 fontsize=10)
+    ax.legend(frameon=False, fontsize=8, loc="lower left")
+    return save(fig, "power.png")
+
+
+def strata() -> Path:
+    st = load("randomization_structure")["propensity"]
+    share = 100 * np.array(st["stratum_share_treatment"])
+    size = np.array(st["stratum_size"])
+    x = np.arange(1, len(share) + 1)
+    fig, ax = new_axes(figsize=(6.4, 3.4))
+    ax.axhline(85, color=GRAY, ls="--", lw=1)
+    ax.text(1, 85.2, "0,85 из карточки набора", fontsize=8, color=INK, va="bottom")
+    ax.scatter(x, share, s=12 + 60 * size / size.max(), color=BLUE, zorder=3)
+    ax.set_xlabel(f"страта склонности, по возрастанию ({len(share)} непустых)", fontsize=8,
+                  color=INK)
+    ax.set_ylabel("доля treatment в страте, %", fontsize=8, color=INK)
+    ax.set_title("Доля treatment зависит от признаков, размер точки это размер страты",
+                 fontsize=10)
+    return save(fig, "strata.png")
+
+
+def sequential() -> Path:
+    seq = load("sequential")
+    looks = np.arange(1, len(seq["bounds_z"]) + 1)
+    fig, (a1, a2) = new_axes(1, 2, figsize=(7.6, 3.2))
+    a1.plot(10 * looks, seq["real_stream"]["z_by_look"], color=BLUE, marker="o", ms=4, lw=2,
+            label="z на реальном потоке")
+    a1.plot(10 * looks, seq["bounds_z"], color=ORANGE, marker="s", ms=4, lw=2,
+            label="граница O'Brien-Fleming")
+    a1.axhline(1.96, color=GRAY, ls="--", lw=1, label="1,96, фиксированный тест")
+    a1.set_xlabel("просмотрено выборки, %", fontsize=8, color=INK)
+    a1.set_ylabel("z визитов", fontsize=8, color=INK)
+    a1.set_title("Реальный поток", fontsize=10)
+    a1.legend(frameon=False, fontsize=7, loc="center right")
+    counts = np.array(seq["stop_look_counts_under_effect"])
+    n = seq["power"]["n"]
+    a2.bar(10 * looks, 100 * counts[1:] / n, width=7, color=BLUE)
+    a2.set_xlabel("остановка на просмотре, % выборки", fontsize=8, color=INK)
+    a2.set_ylabel(f"% из {n} повторов", fontsize=8, color=INK)
+    a2.set_title("Остановка при эффекте в MDE", fontsize=10)
+    a2.set_ylim(0, 100 * counts[1:].max() / n * 1.25)
+    a2.text(0.02, 0.97, f"не остановился до конца {counts[0]} из {n}", transform=a2.transAxes,
+            fontsize=8, color=INK, va="top")
+    a2.set_xticks(10 * looks)
+    return save(fig, "sequential.png")
+
+
+def coverage() -> Path:
+    models = load("uplift")["models"]
+    labels = {"t_learner": ("T-learner", BLUE),
+              "transformed_outcome": ("трансформация исхода", ORANGE),
+              "outcome": ("модель исхода без группы", AQUA)}
+    shares = list(models["t_learner"]["coverage"])
+    x = np.arange(len(shares))
+    fig, ax = new_axes(figsize=(6.4, 3.4))
+    for i, (k, (label, color)) in enumerate(labels.items()):
+        cov = models[k]["coverage"]
+        g = np.array([100 * cov[c]["gain_over_random"] for c in shares])
+        ci = np.array([[100 * v for v in cov[c]["gain_over_random_ci95"]] for c in shares]).T
+        ax.bar(x + (i - 1) * 0.26, g, width=0.24, color=color, label=label,
+               yerr=np.abs(ci - g), capsize=2, error_kw={"lw": 1, "ecolor": INK})
+    ax.set_xticks(x, [f"охват {c}" for c in shares])
+    ax.set_ylabel("визитов сверх случайного охвата, п. п.", fontsize=8, color=INK)
+    ax.set_title("Таргетинг лучших по модели против случайных, 95% интервалы", fontsize=10)
+    ax.legend(frameon=False, fontsize=8, loc="upper right")
+    return save(fig, "coverage.png")
+
+
 def main() -> list[Path]:
     OUT.mkdir(exist_ok=True)
-    return [effect(), balance(), peeking(), uplift()]
+    return [power(), strata(), balance(), effect(), peeking(), sequential(), uplift(), coverage()]
 
 
 if __name__ == "__main__":
