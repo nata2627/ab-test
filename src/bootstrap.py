@@ -51,6 +51,7 @@ def run(g, ys, n_reps, checkpoint: Path | None, log_every: int = 50) -> np.ndarr
             left = rate * (len(todo) - i)
             print(f"{b + 1}/{n_reps}, {rate:.3f} с на повтор, осталось {left:.0f} с", flush=True)
             if checkpoint is not None:
+                checkpoint.parent.mkdir(exist_ok=True)
                 np.save(checkpoint, reps[: b + 1])
     return reps
 

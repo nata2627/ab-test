@@ -77,6 +77,7 @@ def simulate(stream: Stream, effect: float, n_reps: int, checkpoint: Path | None
             left = rate * (len(todo) - i)
             print(f"{r + 1}/{n_reps}, {rate:.2f} с на повтор, осталось {left:.0f} с", flush=True)
             if checkpoint is not None:
+                checkpoint.parent.mkdir(exist_ok=True)
                 np.save(checkpoint, z[: r + 1])
     return z
 

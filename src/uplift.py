@@ -118,6 +118,7 @@ def fit_and_score(fraction: float, cache: Path | None) -> dict:
         out[name] = fit()(xte)
         print(f"{name}: {time.time() - start:.0f} с, пик памяти {peak_gb():.2f} ГБ", flush=True)
     if cache is not None:
+        cache.parent.mkdir(exist_ok=True)
         np.savez(cache, **out)
     return out
 
